@@ -11,7 +11,8 @@ export class AgentController {
     sprintRef: string,
     prompt: string,
     tokens: StoredTokens,
-    userContext: UserContext
+    userContext: UserContext,
+    userStoryId?: number
   ): Promise<AgentResponse> {
     if (!projectRef?.trim()) {
       throw new ValidationError('Project reference is required');
@@ -30,6 +31,7 @@ export class AgentController {
       auth_token: tokens.auth_token,
       refresh: tokens.refresh,
       user_context: userContext,
+      ...(userStoryId != null && userStoryId > 0 && { user_story_id: userStoryId }),
     };
 
     try {

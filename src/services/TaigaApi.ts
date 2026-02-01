@@ -1,7 +1,7 @@
 import { ENV } from '../config/env';
 import { LoginCredentials, TaigaLoginResponse } from '../models/AuthModels';
 import { HttpClient } from './HttpClient';
-import { AuthError } from '../utils/errors';
+import { AuthError, NetworkError } from '../utils/errors';
 
 class TaigaApiService {
   private client: HttpClient;
@@ -29,6 +29,7 @@ class TaigaApiService {
         { Authorization: `Bearer ${authToken}` }
       );
     } catch (error) {
+      if (error instanceof NetworkError && error.statusCode === 401) throw error;
       throw new AuthError('Failed to fetch projects.');
     }
   }
@@ -40,7 +41,27 @@ class TaigaApiService {
         { Authorization: `Bearer ${authToken}` }
       );
     } catch (error) {
+      if (error instanceof NetworkError && error.statusCode === 401) throw error;
       throw new AuthError('Failed to fetch milestones.');
+    }
+  }
+
+  async getUserStories(
+    projectId: number,
+    authToken: string,
+    milestoneId?: number
+  ): Promise<any[]> {
+    try {
+      let url = `/api/v1/userstories?project=${projectId}`;
+      if (milestoneId) {
+        url += `&milestone=${milestoneId}`;
+      }
+      return await this.client.get<any[]>(url, {
+        Authorization: `Bearer ${authToken}`,
+      });
+    } catch (error) {
+      if (error instanceof NetworkError && error.statusCode === 401) throw error;
+      throw new AuthError('Failed to fetch user stories.');
     }
   }
 

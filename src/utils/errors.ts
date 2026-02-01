@@ -6,7 +6,7 @@ export class AppError extends Error {
 }
 
 export class NetworkError extends AppError {
-  constructor(message: string = 'Network request failed') {
+  constructor(message: string = 'Network request failed', public statusCode?: number) {
     super(message, 'NETWORK_ERROR');
     this.name = 'NetworkError';
   }

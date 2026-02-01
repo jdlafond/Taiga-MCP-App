@@ -24,8 +24,10 @@ function MainTabs() {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#8B5CF6',
+        tabBarInactiveTintColor: '#6B6892',
+        tabBarStyle: { backgroundColor: '#1A1926', borderTopColor: '#2D2B42' },
+        tabBarLabelStyle: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12 },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />

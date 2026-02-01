@@ -3,6 +3,9 @@ import { UserContext } from '../models/AuthModels';
 import { logger } from '../utils/logger';
 
 const USER_CONTEXT_KEY = 'user_context';
+const AGENT_CONTEXT_KEY = 'agent_context';
+
+export type AgentContext = { projectId: number; milestoneName: string };
 
 export const LocalStoreService = {
   async saveUserContext(context: UserContext): Promise<void> {
@@ -31,6 +34,27 @@ export const LocalStoreService = {
       logger.info('User context cleared');
     } catch (error) {
       logger.error('Failed to clear user context', error);
+    }
+  },
+
+  async getAgentContext(): Promise<AgentContext | null> {
+    try {
+      const raw = await AsyncStorage.getItem(AGENT_CONTEXT_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as AgentContext;
+      return typeof parsed?.projectId === 'number' && typeof parsed?.milestoneName === 'string'
+        ? parsed
+        : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async saveAgentContext(ctx: AgentContext): Promise<void> {
+    try {
+      await AsyncStorage.setItem(AGENT_CONTEXT_KEY, JSON.stringify(ctx));
+    } catch (error) {
+      logger.error('Failed to save agent context', error);
     }
   },
 };

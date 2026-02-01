@@ -2,7 +2,7 @@ import { LoginCredentials, TaigaLoginResponse, UserContext, StoredTokens } from 
 import { TaigaApi } from '../services/TaigaApi';
 import { SecureStoreService } from '../storage/SecureStore';
 import { LocalStoreService } from '../storage/LocalStore';
-import { ValidationError } from '../utils/errors';
+import { ValidationError, NetworkError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
 export class AuthController {
@@ -72,5 +72,25 @@ export class AuthController {
     
     logger.info('Token refreshed successfully');
     return newTokens;
+  }
+
+  /**
+   * Runs an async function with the current auth token. If the request fails with 401,
+   * refreshes the token and retries once. Use this for any Taiga API call that uses the stored token.
+   */
+  static async withValidToken<T>(fn: (authToken: string) => Promise<T>): Promise<T> {
+    const tokens = await SecureStoreService.getTokens();
+    if (!tokens) {
+      throw new ValidationError('Not logged in. Please login again.');
+    }
+    try {
+      return await fn(tokens.auth_token);
+    } catch (error) {
+      const is401 = error instanceof NetworkError && error.statusCode === 401;
+      if (!is401) throw error;
+      logger.warn('Received 401, attempting token refresh');
+      const newTokens = await AuthController.refreshToken();
+      return fn(newTokens.auth_token);
+    }
   }
 }
