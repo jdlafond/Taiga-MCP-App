@@ -26,6 +26,7 @@ import { getErrorMessage } from '../utils/errors';
 import { AgentResponse } from '../models/AgentModels';
 import { UserContext, TaigaMilestone, TaigaUserStory } from '../models/AuthModels';
 import { Theme } from '../theme/colors';
+import { UserStoryDropdown, CREATE_NEW_USER_STORY } from '../components/UserStoryDropdown';
 
 type ChatMessage = {
   id: string;
@@ -34,7 +35,7 @@ type ChatMessage = {
   response?: AgentResponse;
 };
 
-const CREATE_NEW_VALUE = -1;
+const CREATE_NEW_VALUE = CREATE_NEW_USER_STORY;
 
 export default function AgentScreen() {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
@@ -240,13 +241,6 @@ export default function AgentScreen() {
     label: `${m.name}${m.closed ? ' (Closed)' : ''}`,
     value: m.name,
   }));
-  const userStoryOptions = [
-    { label: 'Create new', value: CREATE_NEW_VALUE },
-    ...userStories.map((us) => ({
-      label: us.subject.length > 40 ? `#${us.ref}: ${us.subject.slice(0, 37)}…` : `#${us.ref}: ${us.subject}`,
-      value: us.id,
-    })),
-  ];
 
   const dropdownModalStyle = {
     backgroundColor: Theme.surfaceElevated,
@@ -330,32 +324,15 @@ export default function AgentScreen() {
             maxHeight={280}
           />
         )}
-        {loadingUserStories ? (
-          <View style={styles.contextDropdown}>
-            <ActivityIndicator size="small" color={Theme.accentPurple} />
-          </View>
-        ) : (
-          <Dropdown
-            style={styles.contextDropdown}
-            containerStyle={dropdownModalStyle}
-            data={userStoryOptions}
-            labelField="label"
-            valueField="value"
-            placeholder="Add to user story"
-            value={selectedUserStoryId}
-            onChange={(item) => setSelectedUserStoryId(item.value)}
-            disable={loading || !selectedMilestone}
-            placeholderStyle={styles.dropdownPlaceholder}
-            selectedTextStyle={styles.dropdownSelected}
-            selectedTextProps={{ numberOfLines: 1 }}
-            itemTextStyle={styles.dropdownItemText}
-            itemContainerStyle={styles.dropdownItemContainer}
-            backgroundColor={Theme.screenBg}
-            activeColor={Theme.surface}
-            renderRightIcon={renderChevron}
-            maxHeight={280}
-          />
-        )}
+        <UserStoryDropdown
+          userStories={userStories}
+          value={selectedUserStoryId}
+          onChange={setSelectedUserStoryId}
+          disabled={loading}
+          loading={loadingUserStories}
+          sprintSelected={!!selectedMilestone}
+          placeholder="Add to user story"
+        />
       </View>
 
       {/* Empty state hints */}
