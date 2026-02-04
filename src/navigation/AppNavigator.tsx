@@ -7,6 +7,7 @@ import LoginScreen from '../views/LoginScreen';
 import HomeScreen from '../views/HomeScreen';
 import AgentScreen from '../views/AgentScreen';
 import { AuthController } from '../controllers/AuthController';
+import {Theme} from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -31,7 +32,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Chat" component={AgentScreen} options={{ title: 'Run Agent' }} />
+      <Tab.Screen name="Chat" component={AgentScreen} options={{ title: 'Run Agent', headerStyle: { backgroundColor: Theme.screenBg }, headerTintColor: Theme.textPrimary }} />
     </Tab.Navigator>
   );
 }

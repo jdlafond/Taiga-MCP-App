@@ -30,7 +30,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <View style={styles.root} onLayout={onLayoutRootView}>
-        <StatusBar style="light" />
+        <StatusBar style="light" translucent backgroundColor="transparent" />
         <AppNavigator />
       </View>
     </SafeAreaProvider>

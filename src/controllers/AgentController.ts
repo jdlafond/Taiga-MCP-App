@@ -50,7 +50,7 @@ export class AgentController {
           logger.info('Retrying agent request with refreshed token');
           return await AgentApi.runAgent(request);
         } catch (refreshError) {
-          throw new AuthError('Session expired. Please login again.');
+          throw new ValidationError('Session expired. Please login again.');
         }
       }
       

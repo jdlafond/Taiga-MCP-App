@@ -67,11 +67,17 @@ export class AuthController {
       throw new ValidationError('No refresh token available');
     }
 
-    const newTokens = await TaigaApi.refreshToken(tokens.refresh);
-    await SecureStoreService.saveTokens(newTokens);
-    
-    logger.info('Token refreshed successfully');
-    return newTokens;
+    try {
+      const newTokens = await TaigaApi.refreshToken(tokens.refresh);
+      await SecureStoreService.saveTokens(newTokens);
+      logger.info('Token refreshed successfully');
+      return newTokens;
+    } catch (error) {
+      logger.error('Token refresh failed, clearing stored tokens', error);
+      await SecureStoreService.clearTokens();
+      await LocalStoreService.clearUserContext();
+      throw new ValidationError('Session expired. Please login again.');
+    }
   }
 
   /**
@@ -89,8 +95,12 @@ export class AuthController {
       const is401 = error instanceof NetworkError && error.statusCode === 401;
       if (!is401) throw error;
       logger.warn('Received 401, attempting token refresh');
-      const newTokens = await AuthController.refreshToken();
-      return fn(newTokens.auth_token);
+      try {
+        const newTokens = await AuthController.refreshToken();
+        return fn(newTokens.auth_token);
+      } catch (refreshError) {
+        throw new ValidationError('Session expired. Please login again.');
+      }
     }
   }
 }

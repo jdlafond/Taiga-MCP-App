@@ -57,6 +57,7 @@ export function UserStoryDropdown({
     borderRadius: 14,
     overflow: 'hidden' as const,
     maxHeight: 280,
+    minWidth: 200,
   };
 
   const renderChevron = (visible?: boolean) => (
@@ -92,7 +93,6 @@ export function UserStoryDropdown({
       selectedTextProps={{ numberOfLines: 1 }}
       itemTextStyle={styles.itemText}
       itemContainerStyle={styles.itemContainer}
-      backgroundColor={Theme.screenBg}
       activeColor={Theme.surface}
       renderRightIcon={renderChevron}
       maxHeight={280}
@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary,
     fontFamily: 'PlusJakartaSans_400Regular',
     fontSize: 14,
+    flexShrink: 0,
   },
   itemContainer: {
     backgroundColor: Theme.surfaceElevated,
@@ -135,5 +136,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Theme.border,
+    flexWrap: 'nowrap',
   },
 });

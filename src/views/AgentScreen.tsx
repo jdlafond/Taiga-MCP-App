@@ -22,11 +22,13 @@ import { SecureStoreService } from '../storage/SecureStore';
 import { LocalStoreService } from '../storage/LocalStore';
 import type { AgentContext } from '../storage/LocalStore';
 import { TaigaApi } from '../services/TaigaApi';
-import { getErrorMessage } from '../utils/errors';
+import { getErrorMessage, ValidationError } from '../utils/errors';
+import { useNavigation } from '@react-navigation/native';
 import { AgentResponse } from '../models/AgentModels';
 import { UserContext, TaigaMilestone, TaigaUserStory } from '../models/AuthModels';
 import { Theme } from '../theme/colors';
 import { UserStoryDropdown, CREATE_NEW_USER_STORY } from '../components/UserStoryDropdown';
+import { DropdownModal } from '../components/DropdownModal';
 
 type ChatMessage = {
   id: string;
@@ -38,6 +40,7 @@ type ChatMessage = {
 const CREATE_NEW_VALUE = CREATE_NEW_USER_STORY;
 
 export default function AgentScreen() {
+  const navigation = useNavigation();
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [milestones, setMilestones] = useState<TaigaMilestone[]>([]);
@@ -52,6 +55,9 @@ export default function AgentScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [typingDots, setTypingDots] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [showUserStoryModal, setShowUserStoryModal] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const savedAgentRef = useRef<AgentContext | null>(null);
   const insets = useSafeAreaInsets();
@@ -115,6 +121,14 @@ export default function AgentScreen() {
     }
   };
 
+  const handleSessionExpired = () => {
+    Alert.alert(
+      'Session Expired',
+      'Your session has expired. Please login again.',
+      [{ text: 'OK', onPress: () => navigation.navigate('Login' as never) }]
+    );
+  };
+
   const loadMilestones = async () => {
     if (!selectedProjectId) return;
     setLoadingMilestones(true);
@@ -139,7 +153,11 @@ export default function AgentScreen() {
         savedAgentRef.current = null;
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to load milestones');
+      if (error instanceof ValidationError && error.message.includes('Session expired')) {
+        handleSessionExpired();
+      } else {
+        Alert.alert('Error', 'Failed to load milestones');
+      }
     } finally {
       setLoadingMilestones(false);
     }
@@ -164,7 +182,11 @@ export default function AgentScreen() {
       setUserStories(mapped);
       setSelectedUserStoryId(CREATE_NEW_VALUE);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load user stories');
+      if (error instanceof ValidationError && error.message.includes('Session expired')) {
+        handleSessionExpired();
+      } else {
+        Alert.alert('Error', 'Failed to load user stories');
+      }
       setUserStories([]);
     } finally {
       setLoadingUserStories(false);
@@ -221,7 +243,11 @@ export default function AgentScreen() {
       setToastMessage(toast);
       setTimeout(() => setToastMessage(null), 2500);
     } catch (error) {
-      Alert.alert('Agent Error', getErrorMessage(error));
+      if (error instanceof ValidationError && error.message.includes('Session expired')) {
+        handleSessionExpired();
+      } else {
+        Alert.alert('Agent Error', getErrorMessage(error));
+      }
       setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
     } finally {
       setLoading(false);
@@ -249,6 +275,9 @@ export default function AgentScreen() {
     borderRadius: 14,
     overflow: 'hidden' as const,
     maxHeight: 280,
+    minWidth: 200,
+    maxWidth: `calc(100vw - ${insets.left + insets.right + 32}px)` as any,
+    marginHorizontal: 16,
   };
   const renderChevron = (visible?: boolean) => (
     <Ionicons
@@ -261,79 +290,98 @@ export default function AgentScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Context bar: project, sprint, optional user story */}
-      <View style={styles.contextBar}>
-        <Dropdown
+      <View style={[styles.contextBar, { paddingTop: insets.top + 14 }]}>
+        <TouchableOpacity
           style={styles.contextDropdown}
-          containerStyle={dropdownModalStyle}
-          data={projectOptions}
-          labelField="label"
-          valueField="value"
-          placeholder="Project"
-          value={selectedProjectId}
-          onChange={(item) => {
-            setSelectedProjectId(item.value);
-            LocalStoreService.saveAgentContext({ projectId: item.value, milestoneName: '' });
-          }}
-          disable={loading}
-          placeholderStyle={styles.dropdownPlaceholder}
-          selectedTextStyle={styles.dropdownSelected}
-          selectedTextProps={{ numberOfLines: 1 }}
-          itemTextStyle={styles.dropdownItemText}
-          itemContainerStyle={styles.dropdownItemContainer}
-          backgroundColor={Theme.screenBg}
-          activeColor={Theme.surface}
-          renderRightIcon={renderChevron}
-          maxHeight={280}
-        />
+          onPress={() => setShowProjectModal(true)}
+          disabled={loading}
+        >
+          <Text style={selectedProjectId ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
+            {selectedProjectId ? projectOptions.find(p => p.value === selectedProjectId)?.label : 'Project'}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color={Theme.textSecondary} />
+        </TouchableOpacity>
         {loadingMilestones ? (
           <View style={styles.contextDropdown}>
             <ActivityIndicator size="small" color={Theme.accentPurple} />
           </View>
         ) : (
-          <Dropdown
+          <TouchableOpacity
             style={styles.contextDropdown}
-            containerStyle={dropdownModalStyle}
-            data={milestoneOptions}
-            labelField="label"
-            valueField="value"
-            placeholder="Sprint"
-            value={selectedMilestone}
-            onChange={(item) => {
-              setSelectedMilestone(item.value);
-              if (selectedProjectId != null) {
-                LocalStoreService.saveAgentContext({
-                  projectId: selectedProjectId,
-                  milestoneName: item.value,
-                });
-              }
-            }}
-            disable={loading || milestones.length === 0}
-            placeholderStyle={styles.dropdownPlaceholder}
-            selectedTextStyle={styles.dropdownSelected}
-            selectedTextProps={{ numberOfLines: 1 }}
-            itemTextStyle={styles.dropdownItemText}
-            itemContainerStyle={styles.dropdownItemContainer}
-            backgroundColor={Theme.screenBg}
-            activeColor={Theme.surface}
-            renderRightIcon={renderChevron}
-            maxHeight={280}
-          />
+            onPress={() => setShowMilestoneModal(true)}
+            disabled={loading || milestones.length === 0}
+          >
+            <Text style={selectedMilestone ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
+              {selectedMilestone || 'Sprint'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={Theme.textSecondary} />
+          </TouchableOpacity>
         )}
-        <UserStoryDropdown
-          userStories={userStories}
-          value={selectedUserStoryId}
-          onChange={setSelectedUserStoryId}
-          disabled={loading}
-          loading={loadingUserStories}
-          sprintSelected={!!selectedMilestone}
-          placeholder="Add to user story"
-        />
+        {loadingUserStories ? (
+          <View style={styles.contextDropdown}>
+            <ActivityIndicator size="small" color={Theme.accentPurple} />
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.contextDropdown}
+            onPress={() => setShowUserStoryModal(true)}
+            disabled={loading || !selectedMilestone}
+          >
+            <Text style={selectedUserStoryId !== CREATE_NEW_VALUE ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
+              {selectedUserStoryId !== CREATE_NEW_VALUE
+                ? userStories.find(us => us.id === selectedUserStoryId)?.subject.slice(0, 40) || 'Add to user story'
+                : 'Add to user story'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={Theme.textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
+
+      <DropdownModal
+        visible={showProjectModal}
+        items={projectOptions}
+        onSelect={(item) => {
+          setSelectedProjectId(item.value);
+          LocalStoreService.saveAgentContext({ projectId: item.value, milestoneName: '' });
+        }}
+        onClose={() => setShowProjectModal(false)}
+        title="Select Project"
+      />
+
+      <DropdownModal
+        visible={showMilestoneModal}
+        items={milestoneOptions}
+        onSelect={(item) => {
+          setSelectedMilestone(item.value);
+          if (selectedProjectId != null) {
+            LocalStoreService.saveAgentContext({
+              projectId: selectedProjectId,
+              milestoneName: item.value,
+            });
+          }
+        }}
+        onClose={() => setShowMilestoneModal(false)}
+        title="Select Sprint"
+      />
+
+      <DropdownModal
+        visible={showUserStoryModal}
+        items={[
+          { label: 'Create new', value: CREATE_NEW_VALUE },
+          ...userStories.map((us) => ({
+            label: us.subject.length > 40 ? `#${us.ref}: ${us.subject.slice(0, 37)}…` : `#${us.ref}: ${us.subject}`,
+            value: us.id,
+          })),
+        ]}
+        onSelect={(item) => setSelectedUserStoryId(item.value)}
+        onClose={() => setShowUserStoryModal(false)}
+        title="Select User Story"
+      />
 
       {/* Empty state hints */}
       {!loadingMilestones && selectedProjectId && milestones.length === 0 && (
@@ -484,7 +532,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 46,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   dropdownPlaceholder: {
     color: Theme.textMuted,
@@ -501,6 +551,7 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary,
     fontFamily: 'PlusJakartaSans_400Regular',
     fontSize: 14,
+    flexShrink: 0,
   },
   dropdownItemContainer: {
     backgroundColor: Theme.surfaceElevated,
@@ -508,6 +559,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Theme.border,
+    flexWrap: 'nowrap',
   },
   emptyHint: {
     flexDirection: 'row',
