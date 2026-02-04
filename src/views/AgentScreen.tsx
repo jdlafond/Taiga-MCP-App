@@ -37,6 +37,10 @@ type ChatMessage = {
 
 const CREATE_NEW_VALUE = CREATE_NEW_USER_STORY;
 
+/**
+ * Agent screen: chat-style UI with a scrollable message list and input at the bottom.
+ * Context (project, sprint, optional user story) is in a compact bar at the top.
+ */
 export default function AgentScreen() {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
