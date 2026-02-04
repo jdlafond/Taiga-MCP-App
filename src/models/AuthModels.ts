@@ -36,7 +36,6 @@ export interface TaigaProject {
   id: number;
   name: string;
   slug: string;
-  description: string;
   milestones?: TaigaMilestone[];
 }
 
@@ -60,10 +59,6 @@ export interface UserContext {
   username: string;
   email: string;
   roles: string[];
-  uuid: string;
-  full_name: string;
-  full_name_display: string;
-  projects: TaigaProject[];
 }
 
 export interface LoginCredentials {

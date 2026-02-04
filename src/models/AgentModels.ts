@@ -1,8 +1,8 @@
 import { UserContext } from './AuthModels';
 
 export interface AgentRequest {
-  project_ref: string;
-  sprint_ref: string;
+  project_id: number;
+  milestone_id: number;
   prompt: string;
   auth_token: string;
   refresh: string;

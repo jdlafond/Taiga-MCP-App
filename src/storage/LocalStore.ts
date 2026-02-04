@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 const USER_CONTEXT_KEY = 'user_context';
 const AGENT_CONTEXT_KEY = 'agent_context';
 
-export type AgentContext = { projectId: number; milestoneName: string };
+export type AgentContext = { projectId: number; milestoneId: number | null; userStoryId?: number };
 
 export const LocalStoreService = {
   async saveUserContext(context: UserContext): Promise<void> {
@@ -42,7 +42,7 @@ export const LocalStoreService = {
       const raw = await AsyncStorage.getItem(AGENT_CONTEXT_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as AgentContext;
-      return typeof parsed?.projectId === 'number' && typeof parsed?.milestoneName === 'string'
+      return typeof parsed?.projectId === 'number'
         ? parsed
         : null;
     } catch {

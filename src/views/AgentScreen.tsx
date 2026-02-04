@@ -44,7 +44,7 @@ export default function AgentScreen() {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [milestones, setMilestones] = useState<TaigaMilestone[]>([]);
-  const [selectedMilestone, setSelectedMilestone] = useState('');
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | null>(null);
   const [userStories, setUserStories] = useState<TaigaUserStory[]>([]);
   const [selectedUserStoryId, setSelectedUserStoryId] = useState<number>(CREATE_NEW_VALUE);
   const [prompt, setPrompt] = useState('');
@@ -70,21 +70,20 @@ export default function AgentScreen() {
   // Load milestones when project is selected (same pattern as before)
   useEffect(() => {
     if (selectedProjectId) {
-      setSelectedMilestone('');
+      setSelectedMilestoneId(null);
       loadMilestones();
     }
   }, [selectedProjectId]);
 
   // Load user stories when project + milestone are set (on launch and when user changes sprint)
   useEffect(() => {
-    const milestoneId = milestones.find((m) => m.name === selectedMilestone)?.id;
-    if (selectedProjectId && selectedMilestone && milestoneId) {
+    if (selectedProjectId && selectedMilestoneId) {
       loadUserStories();
     } else {
       setUserStories([]);
       setSelectedUserStoryId(CREATE_NEW_VALUE);
     }
-  }, [selectedProjectId, selectedMilestone, milestones]);
+  }, [selectedProjectId, selectedMilestoneId]);
 
   // Animated typing dots while agent is thinking
   useEffect(() => {
@@ -145,10 +144,10 @@ export default function AgentScreen() {
       setMilestones(mapped);
       if (mapped.length) {
         const saved = savedAgentRef.current;
-        if (saved?.milestoneName && mapped.some((m) => m.name === saved.milestoneName)) {
-          setSelectedMilestone(saved.milestoneName);
+        if (saved?.milestoneId && mapped.some((m) => m.id === saved.milestoneId)) {
+          setSelectedMilestoneId(saved.milestoneId);
         } else {
-          setSelectedMilestone(mapped[0].name);
+          setSelectedMilestoneId(mapped[0].id);
         }
         savedAgentRef.current = null;
       }
@@ -164,13 +163,11 @@ export default function AgentScreen() {
   };
 
   const loadUserStories = async () => {
-    if (!selectedProjectId || !selectedMilestone) return;
-    const milestoneId = milestones.find((m) => m.name === selectedMilestone)?.id;
-    if (!milestoneId) return;
+    if (!selectedProjectId || !selectedMilestoneId) return;
     setLoadingUserStories(true);
     try {
       const data = await AuthController.withValidToken((authToken) =>
-        TaigaApi.getUserStories(selectedProjectId, authToken, milestoneId)
+        TaigaApi.getUserStories(selectedProjectId, authToken, selectedMilestoneId)
       );
       const mapped = data.map((us: any) => ({
         id: us.id,
@@ -180,7 +177,12 @@ export default function AgentScreen() {
         milestone: us.milestone,
       }));
       setUserStories(mapped);
-      setSelectedUserStoryId(CREATE_NEW_VALUE);
+      const saved = savedAgentRef.current;
+      if (saved?.userStoryId && mapped.some((us: any) => us.id === saved.userStoryId)) {
+        setSelectedUserStoryId(saved.userStoryId);
+      } else {
+        setSelectedUserStoryId(CREATE_NEW_VALUE);
+      }
     } catch (error) {
       if (error instanceof ValidationError && error.message.includes('Session expired')) {
         handleSessionExpired();
@@ -204,7 +206,8 @@ export default function AgentScreen() {
     }
 
     const project = userContext.projects.find((p) => p.id === selectedProjectId);
-    if (!project || !selectedMilestone) return;
+    const milestone = milestones.find((m) => m.id === selectedMilestoneId);
+    if (!project || !milestone) return;
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -221,8 +224,8 @@ export default function AgentScreen() {
     try {
       const userStoryId = selectedUserStoryId > 0 ? selectedUserStoryId : undefined;
       const result = await AgentController.runAgent(
-        project.slug,
-        selectedMilestone,
+        project.id,
+        milestone.id,
         trimmed,
         tokens,
         userContext,
@@ -265,7 +268,7 @@ export default function AgentScreen() {
   const projectOptions = userContext.projects.map((p) => ({ label: p.name, value: p.id }));
   const milestoneOptions = milestones.map((m) => ({
     label: `${m.name}${m.closed ? ' (Closed)' : ''}`,
-    value: m.name,
+    value: m.id,
   }));
 
   const dropdownModalStyle = {
@@ -316,8 +319,8 @@ export default function AgentScreen() {
             onPress={() => setShowMilestoneModal(true)}
             disabled={loading || milestones.length === 0}
           >
-            <Text style={selectedMilestone ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
-              {selectedMilestone || 'Sprint'}
+            <Text style={selectedMilestoneId ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
+              {selectedMilestoneId ? milestoneOptions.find(m => m.value === selectedMilestoneId)?.label : 'Sprint'}
             </Text>
             <Ionicons name="chevron-down" size={20} color={Theme.textSecondary} />
           </TouchableOpacity>
@@ -330,7 +333,7 @@ export default function AgentScreen() {
           <TouchableOpacity
             style={styles.contextDropdown}
             onPress={() => setShowUserStoryModal(true)}
-            disabled={loading || !selectedMilestone}
+            disabled={loading || !selectedMilestoneId}
           >
             <Text style={selectedUserStoryId !== CREATE_NEW_VALUE ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
               {selectedUserStoryId !== CREATE_NEW_VALUE
@@ -347,7 +350,7 @@ export default function AgentScreen() {
         items={projectOptions}
         onSelect={(item) => {
           setSelectedProjectId(item.value);
-          LocalStoreService.saveAgentContext({ projectId: item.value, milestoneName: '' });
+          LocalStoreService.saveAgentContext({ projectId: item.value, milestoneId: null, userStoryId: undefined });
         }}
         onClose={() => setShowProjectModal(false)}
         title="Select Project"
@@ -357,11 +360,12 @@ export default function AgentScreen() {
         visible={showMilestoneModal}
         items={milestoneOptions}
         onSelect={(item) => {
-          setSelectedMilestone(item.value);
+          setSelectedMilestoneId(item.value);
           if (selectedProjectId != null) {
             LocalStoreService.saveAgentContext({
               projectId: selectedProjectId,
-              milestoneName: item.value,
+              milestoneId: item.value,
+              userStoryId: undefined,
             });
           }
         }}
@@ -378,7 +382,16 @@ export default function AgentScreen() {
             value: us.id,
           })),
         ]}
-        onSelect={(item) => setSelectedUserStoryId(item.value)}
+        onSelect={(item) => {
+          setSelectedUserStoryId(item.value);
+          if (selectedProjectId != null && selectedMilestoneId) {
+            LocalStoreService.saveAgentContext({
+              projectId: selectedProjectId,
+              milestoneId: selectedMilestoneId,
+              userStoryId: item.value > 0 ? item.value : undefined,
+            });
+          }
+        }}
         onClose={() => setShowUserStoryModal(false)}
         title="Select User Story"
       />
@@ -390,7 +403,7 @@ export default function AgentScreen() {
           <Text style={styles.emptyHintText}>No sprints in this project</Text>
         </View>
       )}
-      {!loadingUserStories && selectedMilestone && userStories.length === 0 && milestones.length > 0 && (
+      {!loadingUserStories && selectedMilestoneId && userStories.length === 0 && milestones.length > 0 && (
         <View style={styles.emptyHint}>
           <Ionicons name="document-text-outline" size={16} color={Theme.textMuted} />
           <Text style={styles.emptyHintText}>No user stories in this sprint</Text>

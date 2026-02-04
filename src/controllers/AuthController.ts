@@ -35,7 +35,6 @@ export class AuthController {
         id: p.id,
         name: p.name,
         slug: p.slug,
-        description: p.description,
       })),
     };
     await LocalStoreService.saveUserContext(userContext);
