@@ -7,9 +7,11 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { UserContext } from '../models/AuthModels';
 import { AuthController } from '../controllers/AuthController';
 import { LocalStoreService } from '../storage/LocalStore';
+import { Theme } from '../theme/colors';
 
 export default function HomeScreen({ navigation }: any) {
   const [userContext, setUserContext] = useState<UserContext | null>(null);
@@ -39,8 +41,8 @@ export default function HomeScreen({ navigation }: any) {
 
   if (!userContext) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={[styles.container, styles.centerContainer]}>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -48,26 +50,27 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Welcome</Text>
-        
+        <View style={styles.header}>
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={28} color={Theme.primary} />
+          </View>
+          <Text style={styles.title}>Welcome</Text>
+          <Text style={styles.username}>{userContext.username}</Text>
+        </View>
+
         <View style={styles.card}>
           <Text style={styles.label}>Username</Text>
           <Text style={styles.value}>{userContext.username}</Text>
-          
+
           <Text style={styles.label}>Email</Text>
           <Text style={styles.value}>{userContext.email}</Text>
-          
+
           <Text style={styles.label}>Roles</Text>
           <Text style={styles.value}>{userContext.roles.join(', ') || 'None'}</Text>
-          
-          <Text style={styles.label}>Projects</Text>
-          <Text style={styles.value}>{userContext.projects.length} project(s)</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleLogout}
-        >
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color={Theme.error} />
           <Text style={styles.secondaryButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -78,61 +81,83 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Theme.screenBg,
+  },
+  centerContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
-    padding: 20,
-    paddingTop: 60,
+    padding: 24,
+    paddingTop: 48,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Theme.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Theme.border,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 26,
+    color: Theme.textPrimary,
+    marginBottom: 4,
+  },
+  username: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 15,
+    color: Theme.textSecondary,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Theme.surface,
     padding: 20,
-    borderRadius: 8,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Theme.border,
   },
   label: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 12,
-    color: '#666',
-    marginTop: 10,
-    marginBottom: 5,
+    color: Theme.textMuted,
+    marginTop: 12,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   value: {
+    fontFamily: 'PlusJakartaSans_400Regular',
     fontSize: 16,
-    color: '#000',
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 10,
+    color: Theme.textPrimary,
   },
   secondaryButton: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Theme.surface,
+    padding: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#FF3B30',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    borderColor: Theme.border,
   },
   secondaryButtonText: {
-    color: '#FF3B30',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 16,
-    fontWeight: '600',
+    color: Theme.error,
+  },
+  loadingText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 15,
+    color: Theme.textSecondary,
   },
 });

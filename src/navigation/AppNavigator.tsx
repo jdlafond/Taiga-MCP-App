@@ -7,6 +7,7 @@ import LoginScreen from '../views/LoginScreen';
 import HomeScreen from '../views/HomeScreen';
 import AgentScreen from '../views/AgentScreen';
 import { AuthController } from '../controllers/AuthController';
+import {Theme} from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,12 +25,14 @@ function MainTabs() {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#8B5CF6',
+        tabBarInactiveTintColor: '#6B6892',
+        tabBarStyle: { backgroundColor: '#1A1926', borderTopColor: '#2D2B42' },
+        tabBarLabelStyle: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12 },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Chat" component={AgentScreen} options={{ title: 'Run Agent' }} />
+      <Tab.Screen name="Chat" component={AgentScreen} options={{ title: 'Run Agent', headerStyle: { backgroundColor: Theme.screenBg }, headerTintColor: Theme.textPrimary }} />
     </Tab.Navigator>
   );
 }

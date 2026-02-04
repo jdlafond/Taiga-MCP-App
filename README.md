@@ -84,7 +84,16 @@ The frontend does **not** call Taiga directly. It submits a goal to the backend 
 **Request**
 ```json
 {
-  "project_ref": "my-project-slug-or-id",
-  "sprint_ref": "Sprint 6",
-  "prompt": "MEETING MINUTES...\n\nCreate user stories and tasks and add them to Sprint 6."
+  "project_id": "123456",
+  "sprint_id": "123456",
+  "user_story_id": "123456", -- optional
+  "prompt": "MEETING MINUTES...\n\nCreate user stories and tasks for Sprint 6.",
+  "auth_token": "your_taiga_bearer_token",
+  "refresh": "your_refresh_token",
+  "user_context": {
+    "id": 738718,
+    "username": "jdlafond",
+    "email": "jdlafond@asu.edu",
+    "roles": ["Back", "Product Owner"]
+  }
 }

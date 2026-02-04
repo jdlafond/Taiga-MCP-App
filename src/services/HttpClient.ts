@@ -41,7 +41,7 @@ export class HttpClient {
       if (!response.ok) {
         const errorText = await response.text();
         logger.error(`HTTP ${response.status}`, { url, errorText });
-        throw new NetworkError(`Request failed: ${response.status} ${errorText}`);
+        throw new NetworkError(`Request failed: ${response.status} ${errorText}`, response.status);
       }
 
       const data = await response.json();
