@@ -13,7 +13,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { AgentController } from '../controllers/AgentController';
@@ -25,9 +24,9 @@ import { TaigaApi } from '../services/TaigaApi';
 import { getErrorMessage, ValidationError } from '../utils/errors';
 import { useNavigation } from '@react-navigation/native';
 import { AgentResponse } from '../models/AgentModels';
-import { UserContext, TaigaMilestone, TaigaUserStory } from '../models/AuthModels';
+import { UserContext, TaigaMilestone, TaigaUserStory, TaigaProject } from '../models/AuthModels';
 import { Theme } from '../theme/colors';
-import { UserStoryDropdown, CREATE_NEW_USER_STORY } from '../components/UserStoryDropdown';
+import { CREATE_NEW_USER_STORY } from '../components/UserStoryDropdown';
 import { DropdownModal } from '../components/DropdownModal';
 
 type ChatMessage = {
@@ -42,6 +41,7 @@ const CREATE_NEW_VALUE = CREATE_NEW_USER_STORY;
 export default function AgentScreen() {
   const navigation = useNavigation();
   const [userContext, setUserContext] = useState<UserContext | null>(null);
+  const [projects, setProjects] = useState<TaigaProject[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [milestones, setMilestones] = useState<TaigaMilestone[]>([]);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | null>(null);
@@ -50,6 +50,7 @@ export default function AgentScreen() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [loadingMilestones, setLoadingMilestones] = useState(false);
   const [loadingUserStories, setLoadingUserStories] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,6 +67,13 @@ export default function AgentScreen() {
   useEffect(() => {
     loadUserContext();
   }, []);
+
+  // Load projects when user context is loaded
+  useEffect(() => {
+    if (userContext) {
+      loadProjects();
+    }
+  }, [userContext]);
 
   // Load milestones when project is selected (same pattern as before)
   useEffect(() => {
@@ -102,6 +110,7 @@ export default function AgentScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadUserContext();
+    if (userContext) await loadProjects();
     if (selectedProjectId) await loadMilestones();
     setRefreshing(false);
   };
@@ -109,14 +118,39 @@ export default function AgentScreen() {
   const loadUserContext = async () => {
     const context = await LocalStoreService.getUserContext();
     setUserContext(context);
-    if (!context?.projects.length) return;
-    const saved = await LocalStoreService.getAgentContext();
-    if (saved && context.projects.some((p) => p.id === saved.projectId)) {
-      setSelectedProjectId(saved.projectId);
-      savedAgentRef.current = saved;
-    } else {
-      setSelectedProjectId(context.projects[0].id);
-      savedAgentRef.current = null;
+  };
+
+  const loadProjects = async () => {
+    if (!userContext) return;
+    setLoadingProjects(true);
+    try {
+      const data = await AuthController.withValidToken((authToken) =>
+        TaigaApi.getProjects(userContext.id, authToken)
+      );
+      const mapped = data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+      }));
+      setProjects(mapped);
+      if (mapped.length) {
+        const saved = await LocalStoreService.getAgentContext();
+        if (saved && mapped.some((p) => p.id === saved.projectId)) {
+          setSelectedProjectId(saved.projectId);
+          savedAgentRef.current = saved;
+        } else {
+          setSelectedProjectId(mapped[0].id);
+          savedAgentRef.current = null;
+        }
+      }
+    } catch (error) {
+      if (error instanceof ValidationError && error.message.includes('Session expired')) {
+        handleSessionExpired();
+      } else {
+        Alert.alert('Error', 'Failed to load projects');
+      }
+    } finally {
+      setLoadingProjects(false);
     }
   };
 
@@ -205,9 +239,8 @@ export default function AgentScreen() {
       return;
     }
 
-    const project = userContext.projects.find((p) => p.id === selectedProjectId);
     const milestone = milestones.find((m) => m.id === selectedMilestoneId);
-    if (!project || !milestone) return;
+    if (!selectedProjectId || !milestone) return;
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -224,7 +257,7 @@ export default function AgentScreen() {
     try {
       const userStoryId = selectedUserStoryId > 0 ? selectedUserStoryId : undefined;
       const result = await AgentController.runAgent(
-        project.id,
+        selectedProjectId,
         milestone.id,
         trimmed,
         tokens,
@@ -265,7 +298,7 @@ export default function AgentScreen() {
     );
   }
 
-  const projectOptions = userContext.projects.map((p) => ({ label: p.name, value: p.id }));
+  const projectOptions = projects.map((p) => ({ label: p.name, value: p.id }));
   const milestoneOptions = milestones.map((m) => ({
     label: `${m.name}${m.closed ? ' (Closed)' : ''}`,
     value: m.id,
@@ -299,16 +332,22 @@ export default function AgentScreen() {
     >
       {/* Context bar: project, sprint, optional user story */}
       <View style={[styles.contextBar, { paddingTop: insets.top + 14 }]}>
-        <TouchableOpacity
-          style={styles.contextDropdown}
-          onPress={() => setShowProjectModal(true)}
-          disabled={loading}
-        >
-          <Text style={selectedProjectId ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
-            {selectedProjectId ? projectOptions.find(p => p.value === selectedProjectId)?.label : 'Project'}
-          </Text>
-          <Ionicons name="chevron-down" size={20} color={Theme.textSecondary} />
-        </TouchableOpacity>
+        {loadingProjects ? (
+          <View style={styles.contextDropdown}>
+            <ActivityIndicator size="small" color={Theme.accentPurple} />
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.contextDropdown}
+            onPress={() => setShowProjectModal(true)}
+            disabled={loading || projects.length === 0}
+          >
+            <Text style={selectedProjectId ? styles.dropdownSelected : styles.dropdownPlaceholder} numberOfLines={1}>
+              {selectedProjectId ? projectOptions.find(p => p.value === selectedProjectId)?.label : 'Project'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={Theme.textSecondary} />
+          </TouchableOpacity>
+        )}
         {loadingMilestones ? (
           <View style={styles.contextDropdown}>
             <ActivityIndicator size="small" color={Theme.accentPurple} />
@@ -397,6 +436,12 @@ export default function AgentScreen() {
       />
 
       {/* Empty state hints */}
+      {!loadingProjects && projects.length === 0 && (
+        <View style={styles.emptyHint}>
+          <Ionicons name="folder-outline" size={16} color={Theme.textMuted} />
+          <Text style={styles.emptyHintText}>No projects available</Text>
+        </View>
+      )}
       {!loadingMilestones && selectedProjectId && milestones.length === 0 && (
         <View style={styles.emptyHint}>
           <Ionicons name="calendar-outline" size={16} color={Theme.textMuted} />

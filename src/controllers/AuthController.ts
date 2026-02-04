@@ -21,21 +21,11 @@ export class AuthController {
       refresh: response.refresh,
     });
 
-    const projects = await TaigaApi.getProjects(response.id, response.auth_token);
-
     const userContext: UserContext = {
       id: response.id,
       username: response.username,
       email: response.email,
       roles: response.roles,
-      uuid: response.uuid,
-      full_name: response.full_name,
-      full_name_display: response.full_name_display,
-      projects: projects.map(p => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-      })),
     };
     await LocalStoreService.saveUserContext(userContext);
 

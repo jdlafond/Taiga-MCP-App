@@ -55,7 +55,7 @@ export default function HomeScreen({ navigation }: any) {
             <Ionicons name="person" size={28} color={Theme.primary} />
           </View>
           <Text style={styles.title}>Welcome</Text>
-          <Text style={styles.username}>{userContext.full_name_display || userContext.username}</Text>
+          <Text style={styles.username}>{userContext.username}</Text>
         </View>
 
         <View style={styles.card}>
@@ -67,9 +67,6 @@ export default function HomeScreen({ navigation }: any) {
 
           <Text style={styles.label}>Roles</Text>
           <Text style={styles.value}>{userContext.roles.join(', ') || 'None'}</Text>
-
-          <Text style={styles.label}>Projects</Text>
-          <Text style={styles.value}>{userContext.projects.length} project(s)</Text>
         </View>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={handleLogout}>
